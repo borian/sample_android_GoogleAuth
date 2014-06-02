@@ -21,9 +21,11 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -50,13 +52,19 @@ public class ActivityMain extends Activity {
     static final int REQUEST_CODE_PICK_ACCOUNT = 1000;
     static final int REQUEST_CODE_RECOVER_FROM_AUTH_ERROR = 1001;
     static final int REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR = 1002;
-    static final String EXTRA_JSON_RESULT = "GACC_JSON";
+    static final String EXTRA_JSON_RESULT = "ACC_JSON_RESULT";
+    static final String PREF_ACCOUNT_EMAIL = "PREF_ACCOUNT_EMAIL";
+
+    private SharedPreferences preferences;
     private String mEmail;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        mEmail = preferences.getString(PREF_ACCOUNT_EMAIL, null);
+
         Button buttonLogin = (Button) findViewById(R.id.button_login);
         buttonLogin.setOnClickListener(onClickListener);
     }
@@ -67,7 +75,7 @@ public class ActivityMain extends Activity {
         public void onClick(View v) {
             switch (v.getId()) {
                 case R.id.button_login:
-                    greetTheUser(v);
+                    googleLogin(v);
                     break;
             }
         }
@@ -78,7 +86,10 @@ public class ActivityMain extends Activity {
         if (requestCode == REQUEST_CODE_PICK_ACCOUNT) {
             if (resultCode == RESULT_OK) {
                 mEmail = data.getStringExtra(AccountManager.KEY_ACCOUNT_NAME);
-                getUsername();
+                SharedPreferences.Editor editor = preferences.edit();
+                editor.putString(PREF_ACCOUNT_EMAIL, mEmail);
+
+                getAccountInfo();
             } else if (resultCode == RESULT_CANCELED) {
                 Toast.makeText(this, "You must pick an account", Toast.LENGTH_SHORT).show();
             }
@@ -111,10 +122,10 @@ public class ActivityMain extends Activity {
     /**
      * Called by button in the layout
      */
-    public void greetTheUser(View view) {
+    public void googleLogin(View view) {
         int statusCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
         if (statusCode == ConnectionResult.SUCCESS) {
-            getUsername();
+            getAccountInfo();
         } else if (GooglePlayServicesUtil.isUserRecoverableError(statusCode)) {
             Dialog dialog = GooglePlayServicesUtil.getErrorDialog(
                     statusCode, this, 0 /* request code not used */);
@@ -128,7 +139,7 @@ public class ActivityMain extends Activity {
      * Attempt to get the user name. If the email address isn't known yet,
      * then call pickUserAccount() method so the user can pick an account.
      */
-    private void getUsername() {
+    private void getAccountInfo() {
         if (mEmail == null) {
             pickUserAccount();
         } else {
